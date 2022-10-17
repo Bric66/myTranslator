@@ -46,3 +46,7 @@ function morseTraduction(morse){
  }
 
  console.log(morseTraduction("-... --- --- - -.-. --- -.. ."));
+
+ /*return morse.split(" ")
+ .map(key => ref[key])
+ .join('');*/
