@@ -14,8 +14,8 @@ const dbuser = new Map();
 
 app.use(express.json());
 
-function search(email, originalText) {
-  const translations = db.get(email);
+function search(ID, originalText) {
+  const translations = db.get(ID);
   if (translations) {
     const found = translations.find(
       (element) => element.originalText === originalText
@@ -44,7 +44,7 @@ app.post("/user", (req, res) => {
     firstName: req.body.firstname,
     lastName: req.body.lastname,
     email: req.body.email,
-    UUID: uuidv4(),
+    UUID: user.UUID,
   };
 
   const usermail = dbuser.get(user.email);
@@ -54,6 +54,7 @@ app.post("/user", (req, res) => {
     });
   }
   dbuser.set(user.email, user);
+
   return res.send(userreturn);
 });
 
@@ -63,12 +64,16 @@ app.post("/translate", async (req, res) => {
     language: req.body.language,
     email: req.body.email,
   };
-  const isAlreadyTranslated = search(body.email, body.text);
+  const recupUser = dbuser.get(body.email);
+  const recupID = recupUser.UUID;
+
+  const isAlreadyTranslated = search(recupID, body.text);
   if (isAlreadyTranslated) {
     console.log("ça passe");
     return res.send({
       originalText: body.text,
       translatedText: isAlreadyTranslated.translation,
+      UUID: recupID,
     });
   }
   const translation = await translate(body.text, body.language);
@@ -81,16 +86,17 @@ app.post("/translate", async (req, res) => {
     language: body.language,
   };
 
-  const hasAlreadySavedTranslation = db.get(body.email);
+  const hasAlreadySavedTranslation = db.get(recupID);
   if (hasAlreadySavedTranslation) {
     hasAlreadySavedTranslation.push(savedTranslation);
-    db.set(body.email, hasAlreadySavedTranslation);
+    db.set(recupID, hasAlreadySavedTranslation);
   } else {
-    db.set(body.email, [savedTranslation]);
+    db.set(recupID, [savedTranslation]);
   }
   return res.send({
     originalText: body.text,
     translatedText: translatedText,
+    UUID: recupID,
   });
 });
 
