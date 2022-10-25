@@ -14,8 +14,8 @@ const dbuser = new Map();
 
 app.use(express.json());
 
-function search(ID, originalText) {
-  const translations = db.get(ID);
+function search(userId, originalText) {
+  const translations = db.get(userId);
   if (translations) {
     const found = translations.find(
       (element) => element.originalText === originalText
@@ -27,24 +27,24 @@ function search(ID, originalText) {
 }
 
 app.post("/user", (req, res) => {
-  const saltRounds = 10;
-  const myPlaintextPassword = req.body.password;
-
-  const hash = bcrypt.hashSync(myPlaintextPassword, saltRounds);
-
-  const user = {
+  const body = {
     firstName: req.body.firstname,
     lastName: req.body.lastname,
-    email: req.body.email,
-    password: hash,
-    UUID: uuidv4(),
+    email: req.body.email.toLowerCase().trim(),
+    password: req.body.password,
   };
 
-  const userreturn = {
-    firstName: req.body.firstname,
-    lastName: req.body.lastname,
-    email: req.body.email,
-    UUID: user.UUID,
+  const saltRounds = 10;
+  const myPlaintextPassword = body.password;
+  const hash = bcrypt.hashSync(myPlaintextPassword, saltRounds);
+  const userIdNumber = uuidv4();
+
+  const user = {
+    firstName: body.firstName,
+    lastName: body.lastName,
+    email: body.email,
+    password: hash,
+    userId: userIdNumber,
   };
 
   const usermail = dbuser.get(user.email);
@@ -55,7 +55,12 @@ app.post("/user", (req, res) => {
   }
   dbuser.set(user.email, user);
 
-  return res.send(userreturn);
+  return res.send({
+    firstName: req.body.firstname,
+    lastName: req.body.lastname,
+    email: req.body.email,
+    userId: user.userId,
+  });
 });
 
 app.post("/translate", async (req, res) => {
@@ -64,16 +69,16 @@ app.post("/translate", async (req, res) => {
     language: req.body.language,
     email: req.body.email,
   };
-  const recupUser = dbuser.get(body.email);
-  const recupID = recupUser.UUID;
 
-  const isAlreadyTranslated = search(recupID, body.text);
+  const user = dbuser.get(body.email);
+  const userId = user.userId;
+
+  const isAlreadyTranslated = search(userId, body.text);
   if (isAlreadyTranslated) {
-    console.log("ça passe");
     return res.send({
       originalText: body.text,
       translatedText: isAlreadyTranslated.translation,
-      UUID: recupID,
+      userId: userId,
     });
   }
   const translation = await translate(body.text, body.language);
@@ -86,17 +91,17 @@ app.post("/translate", async (req, res) => {
     language: body.language,
   };
 
-  const hasAlreadySavedTranslation = db.get(recupID);
+  const hasAlreadySavedTranslation = db.get(userId);
   if (hasAlreadySavedTranslation) {
     hasAlreadySavedTranslation.push(savedTranslation);
-    db.set(recupID, hasAlreadySavedTranslation);
+    db.set(userId, hasAlreadySavedTranslation);
   } else {
-    db.set(recupID, [savedTranslation]);
+    db.set(userId, [savedTranslation]);
   }
   return res.send({
     originalText: body.text,
     translatedText: translatedText,
-    UUID: recupID,
+    UserId: userId,
   });
 });
 
